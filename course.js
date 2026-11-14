@@ -8,6 +8,8 @@
   /* ================= EDIT THIS BLOCK: links, images and wording ================= */
   var COURSE_URL = "https://boujee-course-worker.kakoozaronald71.workers.dev";
   var CHANNEL_URL = "https://whatsapp.com/channel/0029Vb8takpEgGfM3sovTN2Y";
+  var SHOW_AGAIN_AFTER_HOURS = 24;
+  var STORAGE_KEY = "vc_popup_seen";
 
   var TEXT = {
     eyebrow: "BoujeePhoto Creator Academy · Uganda",
@@ -117,6 +119,26 @@
 @media(max-width:860px){.vc-plans{grid-template-columns:1fr}}
 @media(max-width:520px){.vc-top{padding:48px 18px 16px}.vc-sec{padding:44px 18px}.vc-btn{width:100%}}
 @media(prefers-reduced-motion:reduce){.vc-rv{opacity:1;transform:none;transition:none}}
+
+/* ---------- Popup CSS ---------- */
+.vc-overlay{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.75)}
+.vc-overlay.vc-open{display:flex}
+.vc-box{position:relative;width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow-y:auto;background:var(--bg-card,#0f0f0f);color:var(--text,#fff);border:1px solid var(--red,#e10600);padding:28px 24px;animation:vc-in .25s ease-out}
+@keyframes vc-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.vc-close{position:absolute;top:6px;right:6px;width:44px;height:44px;background:none;border:0;color:var(--text-muted,#888);font-size:26px;line-height:1;cursor:pointer}
+.vc-close:hover{color:var(--text,#fff)}
+.vc-pop-eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--red,#e10600);margin-bottom:8px;padding-right:36px}
+.vc-pop-title{font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1.15;margin-bottom:8px}
+.vc-pop-lead{color:var(--text-light,#ccc);font-size:15px;margin-bottom:18px}
+.vc-pop-plan{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border:1px solid var(--line,#222);padding:14px;margin-bottom:10px}
+.vc-pop-plan b{display:block;font-size:15px}
+.vc-pop-plan span{display:block;font-size:13px;color:var(--text-muted,#888)}
+.vc-pop-price{white-space:nowrap;font-weight:700;font-size:15px;text-align:right}
+.vc-pop-btn{display:block;text-align:center;text-decoration:none;background:var(--red,#e10600);color:#fff;font-weight:700;font-size:15px;padding:15px;margin-top:16px}
+.vc-pop-btn:hover{opacity:.85}
+.vc-link{display:block;width:100%;text-align:center;background:none;border:0;color:var(--text-muted,#888);font:inherit;font-size:14px;padding:12px;margin-top:4px;cursor:pointer;text-decoration:underline}
+.vc-link:hover{color:var(--text,#fff)}
+.vc-overlay a:focus-visible,.vc-overlay button:focus-visible{outline:2px solid var(--red,#e10600);outline-offset:3px}
 `;
 
   function plan(p, hot) {
@@ -231,6 +253,75 @@
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       load(GSAP).then(function () { return load(ST); }).then(animate).catch(function () {});
     }
+
+    // ---------- Popup ----------
+    var popupHtml =
+      '<div class="vc-overlay" id="vc-popup" role="dialog" aria-modal="true" aria-labelledby="vc-title">' +
+      '<div class="vc-box">' +
+      '<button class="vc-close" type="button" aria-label="Close" data-vc-close>&times;</button>' +
+      '<p class="vc-pop-eyebrow">New: video editing course</p>' +
+      '<h2 class="vc-pop-title" id="vc-title">Learn video editing. Pay with just your phone number.</h2>' +
+      '<p class="vc-pop-lead">No account needed. Pick a plan and pay with Mobile Money.</p>' +
+      '<div class="vc-pop-plan"><div><b>Monthly Club</b><span>Lessons plus a WhatsApp study group</span></div>' +
+      '<div class="vc-pop-price">UGX 50,000<span>per month</span></div></div>' +
+      '<div class="vc-pop-plan"><div><b>Private Lessons</b><span>One-on-one with Ronald</span></div>' +
+      '<div class="vc-pop-price">UGX 250,000</div></div>' +
+      '<a class="vc-pop-btn" id="vc-go" href="__URL__">Choose a plan</a>' +
+      '<button class="vc-link" type="button" data-vc-more>How it works</button>' +
+      "</div></div>";
+    var h2 = document.createElement("div");
+    h2.innerHTML = popupHtml.replace(/__URL__/g, COURSE_URL);
+    var popup = h2.firstElementChild;
+    document.body.appendChild(popup);
+
+    var goBtn = document.getElementById("vc-go");
+    var lastFocus = null;
+
+    function recentlySeen() {
+      try {
+        var t = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+        return !!t && Date.now() - t < SHOW_AGAIN_AFTER_HOURS * 3600000;
+      } catch (e) {
+        return false;
+      }
+    }
+    function markSeen() {
+      try { localStorage.setItem(STORAGE_KEY, String(Date.now())); } catch (e) {}
+    }
+    function isOpen() { return popup.classList.contains("vc-open"); }
+    function openPopup() {
+      lastFocus = document.activeElement;
+      popup.classList.add("vc-open");
+      document.body.style.overflow = "hidden";
+      markSeen();
+      goBtn.focus();
+    }
+    function closePopup() {
+      popup.classList.remove("vc-open");
+      document.body.style.overflow = "";
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    popup.addEventListener("click", function (e) {
+      if (e.target === popup || e.target.hasAttribute("data-vc-close")) closePopup();
+      else if (e.target.hasAttribute("data-vc-more")) {
+        closePopup();
+        root.scrollIntoView({ behavior: "smooth" });
+      }
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (!isOpen()) return;
+      if (e.key === "Escape") { closePopup(); return; }
+      if (e.key !== "Tab") return;
+      var f = popup.querySelectorAll("button,a[href]");
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+
+    // Show shortly after the page opens, once per visitor per day
+    if (!recentlySeen() && location.hash !== "#course") setTimeout(openPopup, 600);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
